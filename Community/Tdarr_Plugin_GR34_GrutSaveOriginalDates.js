@@ -5,7 +5,7 @@ function details() {
   return {
     id: 'Tdarr_Plugin_GR34_GrutSaveOriginalDates',
     Stage: 'Pre-processing',
-    Name: 'Grut-Save original dates',
+    Name: 'Grut-Save Original File Date',
     Type: 'AudDateDio',
     Operation: 'Save',
     Description: 'This plugin save dates (atime/mtime) of the original media to a JSON file. Should be used as FIRST plugin in the stack. To restore the original date after transcoding, use Tdarr_Plugin_GR34_GrutRestoreOriginalDates.\n\n',
@@ -24,6 +24,10 @@ function details() {
               \\nDefault:\\n
               false
               `,
+      },
+      {
+        name: 'dates_dir',
+        tooltip: `Path to save .dates files to`,
       },
     ],
   };
@@ -52,24 +56,31 @@ function plugin(file, librarySettings, inputs) {
   if (inputs && inputs.debug && inputs.debug.toLowerCase() === 'true')
     debug=true 
 
-  //Parsethe file property to get the path and the filenamae
+  //Parse the file property to get the path and the filenamae
   parsed_file=path.parse(file.file);
   
   // If the file being processed is a cache file, don't save the dates.
   // We do it only for the actual file being transcoded)
   if(parsed_file.name.includes("-TdarrCacheFile-")){
     print_debug(debug,'######This is a temp file. Don\'t save dates '+file.file)
+    response.infoLog += '######This is a temp file. Don\'t save dates '+file.file+"\n"
   }
   else
   {
     print_debug(debug,'###### Saving original dates for '+file.file)
     print_debug(debug,"Original atime = "+file.statSync.atime)
     print_debug(debug,"Original mtime = "+file.statSync.mtime)
-    
-    
-    date_file=`${parsed_file.dir}${path.posix.sep}${parsed_file.name}.dates`
+
+    response.infoLog += '###### Saving original dates for '+file.file+"\n"
+    response.infoLog += "Original atime = " + file.statSync.atime + ", Original mtime = " + file.statSync.mtime + "\n"
+
+    if (inputs && inputs.dates_dir)
+        date_file=`${inputs.dates_dir}${path.posix.sep}${parsed_file.name}.dates`
+    else
+        date_file=`${parsed_file.dir}${path.posix.sep}${parsed_file.name}.dates`
 
     print_debug(debug,"Save dates in "+date_file)
+    response.infoLog += '###### Saving to: '+date_file+"\n"
     
     try {
 
@@ -80,9 +91,11 @@ function plugin(file, librarySettings, inputs) {
       fs.writeFileSync(date_file, data, 'utf8');
 
       print_debug(debug,`File is written successfully!`);
+      response.infoLog += "File is written successfully!\n"
 
     } catch (err) {
       print_debug(debug,`Error writing file: ${err}`);
+      response.infoLog += `Error writing file: ${err}`+"\n"
     }
     print_debug(debug,'###### End Processing '+file.file)
     
